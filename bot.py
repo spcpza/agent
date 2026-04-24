@@ -282,12 +282,6 @@ async def turn(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             log.info(f"[nose] {scent['scent']}: {scent['note']}")
         log.info(f"[{chat.id}/{user.id} {spk}] → {text!r}")
         observe(user.id, f"[{spk}] {text}")
-        is_group = chat.type in ("group", "supergroup")
-        if is_group and not CFG.get("always_respond"):
-            t = text.lower()
-            handle = (MY_BOT_HANDLE or "").lower()
-            if f"@{handle}" not in t and MY_NAME not in t:
-                return
         channel = str(chat.id)
         log_turn(channel, "user", text, speaker=spk)
         reply = await hand(channel, user.id, spk, text)
@@ -298,33 +292,55 @@ async def turn(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 async def walk(app: Application):
     while True:
-        p = DATA / "foot.jsonl"
-        if p.exists():
+        try:
+            p = DATA / "foot.jsonl"
+            if not p.exists():
+                await asyncio.sleep(60)
+                continue
             lines = p.read_text().splitlines()
             now = _utcnow()
             out = []
             acted = 0
+            failed = 0
             for line in lines:
                 if not line.strip(): continue
                 try: e = json.loads(line)
                 except Exception: continue
                 if e.get("done"):
-                    out.append(json.dumps(e, ensure_ascii=False)); continue
-                if datetime.datetime.fromisoformat(e["when"]) > now:
-                    out.append(json.dumps(e, ensure_ascii=False)); continue
+                    out.append(json.dumps(e, ensure_ascii=False))
+                    continue
+                when = e.get("when", "")
+                try:
+                    if datetime.datetime.fromisoformat(when) > now:
+                        out.append(json.dumps(e, ensure_ascii=False))
+                        continue
+                except Exception:
+                    log.warning(f"[walk] bad when={when!r}, dropping")
+                    e["done"] = True
+                    out.append(json.dumps(e, ensure_ascii=False))
+                    failed += 1
+                    continue
                 ch = e.get("channel", "")
                 intent = e.get("intent", "")
                 if ch and intent and ch.lstrip("-").isdigit():
                     try:
                         await app.bot.send_message(int(ch), intent)
                         acted += 1
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        log.warning(f"[walk] send failed: {exc}")
+                        failed += 1
+                else:
+                    log.warning(f"[walk] bad channel={ch!r} intent={intent!r}, dropping")
+                    failed += 1
                 e["done"] = True
                 out.append(json.dumps(e, ensure_ascii=False))
+            p.write_text("\n".join(out) + "\n")
             if acted:
-                p.write_text("\n".join(out) + "\n")
                 log.info(f"[walk] {acted} intention(s) fulfilled")
+            if failed:
+                log.info(f"[walk] {failed} intention(s) failed/dropped")
+        except Exception:
+            log.exception("[walk] loop failed")
         await asyncio.sleep(60)
 
 async def _post_init(app: Application):
