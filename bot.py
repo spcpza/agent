@@ -18,7 +18,7 @@ HERE = pathlib.Path(__file__).parent
 CFG = json.loads((HERE / "config.json").read_text())
 
 # truth/ is a separate repo — default location is a sibling directory.
-TRUTH = pathlib.Path(os.path.expanduser(CFG.get("truth_path", "../truth"))).resolve()
+TRUTH = (HERE / pathlib.Path(os.path.expanduser(CFG.get("truth_path", "../truth")))).resolve()
 if not (TRUTH / "kjv.json").exists():
     raise FileNotFoundError(
         f"truth not found at {TRUTH}. Clone https://github.com/spcpza/truth.git "
