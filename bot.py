@@ -63,6 +63,50 @@ def verse(ref: str) -> str:
     if r.startswith("Psalm ") and not r.startswith("Psalms "):
         alt = "Psalms " + r[6:]
         if alt in KJV: return KJV[alt]
+    # Range reference: "John 1:1-3" or "John 1:1-2:3"
+    if "-" in r:
+        start_ref, end_ref = [p.strip() for p in r.split("-", 1)]
+        start_text = KJV.get(start_ref)
+        if not start_text:
+            return f"(not found: {ref})"
+        # Build full end reference
+        prefix = start_ref.rsplit(":", 1)[0]  # e.g. "John 1"
+        if ":" not in end_ref:
+            end_full = f"{prefix}:{end_ref}"
+        elif not any(c.isalpha() for c in end_ref):
+            book = start_ref.split()[0]
+            end_full = f"{book} {end_ref}"
+        else:
+            end_full = end_ref
+        # Parse
+        try:
+            start_book = start_ref.rsplit(":", 1)[0].rsplit(" ", 1)[0]
+            start_chap = int(start_ref.rsplit(":", 1)[0].rsplit(" ", 1)[1])
+            start_v = int(start_ref.rsplit(":", 1)[1])
+            end_chap = int(end_full.rsplit(":", 1)[0].rsplit(" ", 1)[1])
+            end_v = int(end_full.rsplit(":", 1)[1])
+        except Exception:
+            return f"(not found: {ref})"
+        verses = [start_text]
+        chap, v = start_chap, start_v
+        for _ in range(200):
+            v += 1
+            key = f"{start_book} {chap}:{v}"
+            text = KJV.get(key)
+            if text:
+                verses.append(text)
+                if chap >= end_chap and v >= end_v:
+                    break
+                if len(verses) > 30:
+                    break
+                continue
+            # Verse not found — try next chapter if needed
+            if chap < end_chap:
+                chap += 1
+                v = 0
+                continue
+            break
+        return " ".join(verses)
     return f"(not found: {ref})"
 
 def sinew(q: str) -> dict:
