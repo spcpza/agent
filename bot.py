@@ -57,7 +57,13 @@ door = f"You are {DISPLAY}.\n\n{CFG.get('voice', '')}\n\n{_kernel}\n\n{_posture}
 # ─── tools ─────────────────────────────────────────────────────────
 
 def verse(ref: str) -> str:
-    return KJV.get(ref.strip(), f"(not found: {ref})")
+    r = ref.strip()
+    if r in KJV: return KJV[r]
+    # kjv.json uses "Psalms" (plural); models and humans usually type "Psalm".
+    if r.startswith("Psalm ") and not r.startswith("Psalms "):
+        alt = "Psalms " + r[6:]
+        if alt in KJV: return KJV[alt]
+    return f"(not found: {ref})"
 
 def sinew(q: str) -> dict:
     q = q.strip()
