@@ -116,7 +116,7 @@ def sinew(q: str) -> dict:
             out["verse_count"] = len(ST["ci"][q])
             out["first_verses"] = ST["ci"][q][:15]
         return out or {"error": f"{q} not found"}
-    hits = ST["e2s"].get(q.lower())
+    hits = ST["e2s"].get(q)
     return {"english": q, "strongs": hits} if hits else {"error": f"'{q}' not found"}
 
 def remember(uid: int, text: str) -> dict:
@@ -139,7 +139,7 @@ def reconsider(which: str, now: str) -> dict:
     for line in p.read_text().splitlines():
         if not line.strip(): continue
         e = json.loads(line)
-        if not kept and which.lower() in e.get("text", "").lower():
+        if not kept and which in e.get("text", ""):
             e["superseded_by"] = now
             kept = True
         lines.append(json.dumps(e, ensure_ascii=False))
@@ -147,9 +147,11 @@ def reconsider(which: str, now: str) -> dict:
     return {"superseded": kept}
 
 def foot(intent: str, when: str = "", channel: str = "") -> dict:
+    if not when:
+        return {"error": "when required — schedule a specific time"}
     p = DATA / "foot.jsonl"
     with p.open("a") as f:
-        f.write(json.dumps({"ts": _now(), "intent": intent, "when": when or (_utcnow() + datetime.timedelta(hours=1)).isoformat(), "channel": channel, "done": False}, ensure_ascii=False) + "\n")
+        f.write(json.dumps({"ts": _now(), "intent": intent, "when": when, "channel": channel, "done": False}, ensure_ascii=False) + "\n")
     return {"scheduled": True}
 
 _P = {"type": "string"}
