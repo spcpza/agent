@@ -59,10 +59,6 @@ door = f"You are {DISPLAY}.\n\n{CFG.get('voice', '')}\n\n{_kernel}\n\n{_posture}
 def verse(ref: str) -> str:
     r = ref.strip()
     if r in KJV: return KJV[r]
-    # kjv.json uses "Psalms" (plural); models and humans usually type "Psalm".
-    if r.startswith("Psalm ") and not r.startswith("Psalms "):
-        alt = "Psalms " + r[6:]
-        if alt in KJV: return KJV[alt]
     # Range reference: "John 1:1-3" or "John 1:1-2:3"
     if "-" in r:
         start_ref, end_ref = [p.strip() for p in r.split("-", 1)]
