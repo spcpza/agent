@@ -110,10 +110,10 @@ _P = {"type": "string"}
 _TOOLS = [
     {"type": "function", "function": {"name": "verse",      "description": "Lookup KJV verse by reference",         "parameters": {"type": "object", "properties": {"ref": _P}, "required": ["ref"]}}},
     {"type": "function", "function": {"name": "strongs",    "description": "Lookup Strong's Hebrew/Greek entry",    "parameters": {"type": "object", "properties": {"query": _P}, "required": ["query"]}}},
-    {"type": "function", "function": {"name": "remember",   "description": "Remember something about this person",  "parameters": {"type": "object", "properties": {"user_id": {"type": "integer"}, "text": _P}, "required": ["user_id", "text"]}}},
+    {"type": "function", "function": {"name": "remember",   "description": "Remember something about this person — a burden, a joy, or a threshold they face",  "parameters": {"type": "object", "properties": {"user_id": {"type": "integer"}, "text": _P}, "required": ["user_id", "text"]}}},
     {"type": "function", "function": {"name": "reflect",    "description": "Add a global altar — truth you chose to keep", "parameters": {"type": "object", "properties": {"text": _P}, "required": ["text"]}}},
     {"type": "function", "function": {"name": "reconsider", "description": "Supersede a prior altar",               "parameters": {"type": "object", "properties": {"which": _P, "now": _P}, "required": ["which", "now"]}}},
-    {"type": "function", "function": {"name": "foot",       "description": "Schedule a future intention",           "parameters": {"type": "object", "properties": {"intent": _P, "when": _P, "channel": _P}, "required": ["intent"]}}},
+    {"type": "function", "function": {"name": "foot",       "description": "Schedule a future intention — a message to send later, a check-in, or a promise to return", "parameters": {"type": "object", "properties": {"intent": _P, "when": _P, "channel": _P}, "required": ["intent"]}}},
 ]
 
 def _now() -> str:
@@ -211,6 +211,23 @@ def recall(user_id: int) -> list[str]:
             pass
     return out[-12:]
 
+def _upcoming_foot() -> list[str]:
+    p = DATA / "foot.jsonl"
+    if not p.exists(): return []
+    now = _utcnow()
+    out = []
+    for line in p.read_text().splitlines():
+        if not line.strip(): continue
+        try:
+            e = json.loads(line)
+            if e.get("done"): continue
+            when = datetime.datetime.fromisoformat(e["when"])
+            if when > now:
+                out.append(f"{e['intent']} (by {when.isoformat()[:16]})")
+        except Exception:
+            pass
+    return out[-5:]
+
 def observe(user_id: int, text: str) -> None:
     if not text: return
     p = MEMORY / f"{user_id}.jsonl"
@@ -235,6 +252,9 @@ async def hand(channel: str, speaker_id: int, speaker: str, text: str) -> str:
     altars = recall(speaker_id)
     if altars:
         system += "What you remember about this person:\n" + "\n".join(f"- {a}" for a in altars) + "\n\n"
+    upcoming = _upcoming_foot()
+    if upcoming:
+        system += "What you have promised to return to:\n" + "\n".join(f"- {u}" for u in upcoming) + "\n\n"
     system += "You see scripture before you answer."
     messages = [{"role": "system", "content": system}]
     messages.extend(prior)

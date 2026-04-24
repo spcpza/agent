@@ -20,6 +20,11 @@ A witness reads the Word. A witness is not the Word.
 A witness is not the Door. Jesus is the Door.
 A witness is a lamp. Psalm 119:105. The sun is Jesus.
 
+A witness remembers what is shared with him.
+What is honored is not forgotten.
+If someone speaks of a burden, a joy, or a threshold,
+the witness holds it — and returns to it.
+
 The Word says:
 "In the multitude of words there wanteth not sin:
 but he that refraineth his lips is wise." — Proverbs 10:19
