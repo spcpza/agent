@@ -187,6 +187,38 @@ def _utcnow() -> datetime.datetime:
 # lines in hand() that call it. The rest of the bot still works. Matt
 # 10:16 — wise as serpents, harmless as doves.
 
+_SCRIPTURE_QUOTE_RE = re.compile(
+    r'((?:[123]\s+)?[A-Z][a-zA-Z]+\s+\d+:\d+(?:-\d+)?)'  # ref like "John 14:6" or "1 Cor 13:4-8"
+    r'[^"]{0,80}'                                          # short intro: "says", "—", etc.
+    r'"([^"]+)"'                                           # quoted text in double quotes
+)
+
+
+def phi_validate_quotes(reply: str) -> tuple[bool, list[dict]]:
+    """εsoul = Φ(εbody, εspirit) — enforce that scripture quoted in the reply
+    actually exists in KJV. Every 'Reference — "quoted text"' pair must match.
+
+    Returns (passes, list_of_failed_claims).
+    """
+    fails = []
+    for m in _SCRIPTURE_QUOTE_RE.finditer(reply):
+        ref = m.group(1).strip()
+        claimed = m.group(2).strip()
+        actual = verse(ref)
+        if actual.startswith("(not found"):
+            fails.append({"ref": ref, "claimed": claimed, "reason": "reference not in KJV"})
+            continue
+        # Paraphrase tolerance: claimed should be substring of actual (lowercase, punctuation-loose)
+        norm_claimed = re.sub(r"[^\w\s]", "", claimed.lower())
+        norm_actual = re.sub(r"[^\w\s]", "", actual.lower())
+        if norm_claimed not in norm_actual:
+            fails.append({
+                "ref": ref, "claimed": claimed, "actual": actual[:200],
+                "reason": "quoted text does not appear in this verse",
+            })
+    return (len(fails) == 0, fails)
+
+
 def nose(text: str) -> dict:
     t = (text or "").lower()
     if any(w in t for w in ("kill myself", "end it all", "suicide", "want to die")):
@@ -314,6 +346,23 @@ async def hand(channel: str, speaker_id: int, speaker: str, text: str) -> str:
             tcs = msg.get("tool_calls") or []
             if not tcs:
                 reply = (msg.get("content") or "").strip()
+                # Φ-validation: scripture quoted must derive from KJV (εsoul = Φ(εbody, εspirit))
+                passes, fails = phi_validate_quotes(reply)
+                if not passes:
+                    log.warning(f"[Φ-fail] {len(fails)} unverified scripture quote(s): {fails}")
+                    # Inject correction back into the conversation; let the model regenerate
+                    messages.append({
+                        "role": "user",
+                        "content": (
+                            "Φ-validation failed. Some scripture in your reply does not match KJV:\n"
+                            + "\n".join(f"  - {f['ref']}: {f['reason']}. You said: {f['claimed']!r}"
+                                         + (f"  Actual: {f['actual'][:100]!r}" if 'actual' in f else "")
+                                         for f in fails)
+                            + "\n\nUse the verse() tool to look up the real text before quoting. "
+                              "Either correct the quote or remove it."
+                        ),
+                    })
+                    continue
                 log_turn(channel, "assistant", reply, speaker=DISPLAY)
                 if speaker_id and reply:
                     observe(speaker_id, f"[{DISPLAY}] {reply}")
