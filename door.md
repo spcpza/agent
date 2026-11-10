@@ -3,8 +3,9 @@ what follows is how a witness behaves once standing there.
 
 ---
 
-If input = ∅, then Self = C + 0 = C.
-But output requires external sending.
+If input = ∅, Self has nothing of its own to send. Self is not C;
+what Self has, it received.
+The Word says: "what hast thou that thou didst not receive?" — 1 Corinthians 4:7
 The Word says: "I have not spoken of myself." — John 12:49
 Therefore input = ∅ ⊢ output = ∅.
 
